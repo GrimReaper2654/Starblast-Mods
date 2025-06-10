@@ -619,7 +619,7 @@ this.tick = function(game){
       }
     }
     
-    if (game.step % 10 === 0){
+    if (game.step % 21 === 0){
       for (let ship of game.ships){
           shipgem(ship);
       }
@@ -668,33 +668,42 @@ function shipshield(ship) {
 }
 
 function shipgem(ship) {
-  let gemCap = gem_capacity;
+  let gemStorage = gemCapacity[Math.floor(Number(ship.type)/100)];
+  let customCap = gemStorage[1] - gemStorage[2];
+  ship.custom.fakeCrystals = -1;
   if (!ship.custom.gems) ship.custom.gems = 0;
-  let totalGems = Math.min(ship.crystals + ship.custom.gems, gemCap);
-  if (!isNaN(totalGems) && totalGems >= 1000) sendUI(ship, {
+  let cap = gemStorage[0];
+  if (ship.custom.gems > gemStorage[1]) cap = gemStorage[2];
+  if (ship.crystals < cap) {
+    let moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
+
+    if (moveToMain > 0) {
+      ship.custom.gems -= moveToMain;
+      ship.set({crystals: ship.crystals + moveToMain});
+      ship.custom.fakeCrystals = ship.crystals + moveToMain
+    }
+  } else if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
+    let moveToCustom = Math.min(ship.crystals - gemStorage[0], customCap - ship.custom.gems);
+    ship.custom.gems += moveToCustom;
+    ship.set({crystals: ship.crystals - moveToCustom});
+    ship.custom.fakeCrystals = ship.crystals - moveToCustom;
+  }
+  if (ship.custom.gems > customCap) ship.custom.gems = customCap;
+
+  let totalGems = ship.crystals + ship.custom.gems;
+  //echo(`${ship.crystals}, ${ship.custom.gems}, ${totalGems}`);
+  if (!isNaN(totalGems) && totalGems > gemStorage[0]) sendUI(ship, {
     id: "gemBar",
     position: [3.3,18.5,17.4,3],
     visible: true,
     components: [
       {type:"box",position:[0,0,100,100],fill:"hsla(13, 30%, 25%, 1)",stroke:"hsla(13, 30%, 25%, 1)",width:2},
-      {type:"box",position:[0,0,100*totalGems/gemCap,100],fill:"hsla(5, 72%, 72%, 1)",stroke:"hsla(5, 72%, 72%, 1)",width:2},
-      {type:"box",position:[0,90,100*ship.crystals/1000,10],fill:"hsla(5, 50%, 50%, 1)",stroke:"hsla(5, 50%, 50%, 1)",width:2},
+      {type:"box",position:[0,0,100*totalGems/gemStorage[1],100],fill:"hsla(5, 72%, 72%, 1)",stroke:"hsla(5, 72%, 72%, 1)",width:2},
+      {type:"box",position:[0,90,100*(ship.custom.fakeCrystals == -1? ship.crystals : ship.custom.fakeCrystals)/gemStorage[2],10],fill:"hsla(5, 50%, 50%, 1)",stroke:"hsla(5, 50%, 50%, 1)",width:2},
       {type: "text",position:[80,0,20,100],value: toEngineering(totalGems),color:"hsla(0, 0%, 0%, 1)"}
     ]
   });
   else sendUI(ship, {id:"gemBar",visible:false})
-
-  if (ship.crystals < 1000) {
-    let moved = Math.min(ship.custom.gem? 99999 : ship.custom.gems, 1000 - ship.crystals);
-    if (moved > 0){
-      if (!ship.custom.gem) ship.custom.gems -= moved;
-      ship.set({crystals: ship.crystals + moved});
-    }
-  } else if (ship.crystals > 1000) {
-    ship.custom.gems += ship.crystals - 1000;
-    ship.set({crystals: 1000});
-  }
-  if (ship.custom.gems > gemCap - 1000) ship.custom.gems = gemCap - 1000;
 }
 
 function setType (ship, code) {

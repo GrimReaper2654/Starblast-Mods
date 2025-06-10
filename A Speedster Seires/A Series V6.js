@@ -77,7 +77,7 @@ const ability_duration = { // in seconds
 };
 const ability_delay = [1]; // in seconds 
 const delay_tps = 60;
-const debug = true;
+const debug = false;
 
 var vocabulary = [
     { text: "You", icon:"\u004e", key:"O" },
@@ -254,8 +254,8 @@ var ability = {
     sendUI(ship, {id:"ability",visible:false});
     ship.set({generator:99999});
     ship.set({shield:99999});
-    ship.set({crystals:99999});
-    ship.custom.gems = 999999;
+    let gemStorage = gemCapacity[Math.floor(Number(ship.type)/100)];
+    ship.crystals = gemStorage[1];
     for (let i = 0; i < ship.custom.a.length; i++) {
       ship.custom.a[i].ready = 1;
     }
@@ -278,7 +278,7 @@ this.tick = function(game) {
       }
     }
     
-    if (game.step % 10 === 0) {
+    if (game.step % 21 === 0) {
       for (let ship of game.ships) {
           shipgem(ship);
           if (debug) ability.tick(ship);
@@ -321,11 +321,30 @@ function shipshield(ship, b) {
 }
 
 function shipgem(ship) {
-  let level = Math.floor(Number(ship.type)/100);
-  let gemStorage = gemCapacity[level];
+  let gemStorage = gemCapacity[Math.floor(Number(ship.type)/100)];
   let customCap = gemStorage[1] - gemStorage[2];
+  ship.custom.fakeCrystals = -1;
   if (!ship.custom.gems) ship.custom.gems = 0;
-  let totalGems = Math.min(ship.crystals + ship.custom.gems, gemStorage[1]);
+  let cap = gemStorage[0];
+  if (ship.custom.gems > gemStorage[1]) cap = gemStorage[2];
+  if (ship.crystals < cap) {
+    let moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
+
+    if (moveToMain > 0) {
+      ship.custom.gems -= moveToMain;
+      ship.set({crystals: ship.crystals + moveToMain});
+      ship.custom.fakeCrystals = ship.crystals + moveToMain
+    }
+  } else if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
+    let moveToCustom = Math.min(ship.crystals - gemStorage[0], customCap - ship.custom.gems);
+    ship.custom.gems += moveToCustom;
+    ship.set({crystals: ship.crystals - moveToCustom});
+    ship.custom.fakeCrystals = ship.crystals - moveToCustom;
+  }
+  if (ship.custom.gems > customCap) ship.custom.gems = customCap;
+
+  let totalGems = ship.crystals + ship.custom.gems;
+  //echo(`${ship.crystals}, ${ship.custom.gems}, ${totalGems}`);
   if (!isNaN(totalGems) && totalGems > gemStorage[0]) sendUI(ship, {
     id: "gemBar",
     position: [3.3,18.5,17.4,3],
@@ -333,23 +352,10 @@ function shipgem(ship) {
     components: [
       {type:"box",position:[0,0,100,100],fill:"hsla(13, 30%, 25%, 1)",stroke:"hsla(13, 30%, 25%, 1)",width:2},
       {type:"box",position:[0,0,100*totalGems/gemStorage[1],100],fill:"hsla(5, 72%, 72%, 1)",stroke:"hsla(5, 72%, 72%, 1)",width:2},
-      {type:"box",position:[0,90,100*ship.crystals/gemStorage[2],10],fill:"hsla(5, 50%, 50%, 1)",stroke:"hsla(5, 50%, 50%, 1)",width:2},
+      {type:"box",position:[0,90,100*(ship.custom.fakeCrystals == -1? ship.crystals : ship.custom.fakeCrystals)/gemStorage[2],10],fill:"hsla(5, 50%, 50%, 1)",stroke:"hsla(5, 50%, 50%, 1)",width:2},
       {type: "text",position:[80,0,20,100],value: toEngineering(totalGems),color:"hsla(0, 0%, 0%, 1)"}
     ]
   });
   else sendUI(ship, {id:"gemBar",visible:false})
-
-  if (ship.crystals < gemStorage[0]) {
-    let moveToMain = Math.min(ship.custom.gems, gemStorage[0] - ship.crystals);
-    if (moveToMain > 0) {
-      ship.custom.gems -= moveToMain;
-      ship.set({crystals: ship.crystals + moveToMain});
-    }
-  } else if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
-    let moveToCustom = Math.min(ship.crystals - gemStorage[0], customCap - ship.custom.gems);
-    ship.custom.gems += moveToCustom;
-    ship.set({crystals: ship.crystals - moveToCustom});
-  }
-  if (ship.custom.gems > customCap) ship.custom.gems = customCap;
 }
 
