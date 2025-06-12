@@ -17,7 +17,6 @@ const ability_duration = { // in seconds
 };
 const ability_delay = [1,8,8,12,20,90,45,90,60,45,300,1,1]; // in seconds 
 const delay_tps = 60;
-const gem_capacity = 10000;
 const map =
 "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999\n"+
 "9 9                 6          6       6           9     6    66     9  6    6    9   66    6               9 6       6       9  6       9           9\n"+
@@ -595,13 +594,6 @@ for (let ship in ships) {
   shields[JSON.parse(ships[ship]).level * 100 + JSON.parse(ships[ship]).model] = JSON.parse(ships[ship]).specs.shield.capacity;
 }
 
-var FormatTime = function(tick, forced, forceAll) {
-  var array = Array(3).fill(0).map((i,j) => Math.floor((tick%(60**(j+2)))/(60**(j+1)))).reverse();
-  while (array.length > forceAll && array[0] == 0) array.splice(0,1);
-  forced = forced.reverse().slice(0,array.length).reverse();
-  return array.map((i,j) => (i<10&&(j==0?forced[j]:!0))?"0"+i.toString():i).join(":");
-}
-
 const sendUI = function(ship, UI) {
   if (UI.visible || UI.visible === null) ship.setUIComponent(UI);
     else ship.setUIComponent({id: UI.id, position: [0,0,0,0], visible: false});
@@ -670,7 +662,7 @@ function shipgem(ship) {
       {type: "text",position:[80,0,20,100],value: toEngineering(totalGems),color:"hsla(0, 0%, 0%, 1)"}
     ]
   });
-  else sendUI(ship, {id:"gemBar",visible:false})
+  else sendUI(ship, {id:"gemBar",visible:false});
 }
 
 this.tick = function(game){
