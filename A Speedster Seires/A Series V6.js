@@ -174,13 +174,6 @@ this.event = function(event,game) {
   }
 };
 
-var FormatTime = function(tick, forced, forceAll) {
-  var array = Array(3).fill(0).map((i,j) => Math.floor((tick%(60**(j+2)))/(60**(j+1)))).reverse();
-  while (array.length > forceAll && array[0] == 0) array.splice(0,1);
-  forced = forced.reverse().slice(0,array.length).reverse();
-  return array.map((i,j) => (i<10&&(j==0?forced[j]:!0))?"0"+i.toString():i).join(":");
-}
-
 var ability = {
   tick: function(ship){
     this.abilityactivation(ship);
@@ -321,12 +314,12 @@ function shipshield(ship, b) {
 }
 
 function shipgem(ship) {
-  let gemStorage = gemCapacity[Math.floor(Number(ship.type)/100)];
+  let gemStorage = gemCapacity[Number(ship.type) > 790? 8 : Math.floor(Number(ship.type)/100)];
   let customCap = gemStorage[1] - gemStorage[2];
   ship.custom.fakeCrystals = -1;
   if (!ship.custom.gems) ship.custom.gems = 0;
   let cap = gemStorage[0];
-  if (ship.custom.gems > gemStorage[1]) cap = gemStorage[2];
+  if (ship.custom.gems > customCap) cap = gemStorage[2];
   if (ship.crystals < cap) {
     let moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
 
@@ -335,13 +328,13 @@ function shipgem(ship) {
       ship.set({crystals: ship.crystals + moveToMain});
       ship.custom.fakeCrystals = ship.crystals + moveToMain
     }
-  } else if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
-    let moveToCustom = Math.min(ship.crystals - gemStorage[0], customCap - ship.custom.gems);
+  } else if (ship.crystals > cap && ship.custom.gems < customCap) {
+    let moveToCustom = Math.min(ship.crystals - cap, customCap - ship.custom.gems);
     ship.custom.gems += moveToCustom;
     ship.set({crystals: ship.crystals - moveToCustom});
     ship.custom.fakeCrystals = ship.crystals - moveToCustom;
   }
-  if (ship.custom.gems > customCap) ship.custom.gems = customCap;
+  //if (ship.custom.gems > customCap) ship.custom.gems = customCap;
 
   let totalGems = ship.crystals + ship.custom.gems;
   //echo(`${ship.crystals}, ${ship.custom.gems}, ${totalGems}`);
@@ -358,4 +351,3 @@ function shipgem(ship) {
   });
   else sendUI(ship, {id:"gemBar",visible:false})
 }
-

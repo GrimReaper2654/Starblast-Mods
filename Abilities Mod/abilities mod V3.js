@@ -256,6 +256,8 @@ this.options = {
 };
 
 var def_clr = "hsla(210, 50%, 87%, 1)";
+const prefixes = ["", "K", "M", "B", "t", "q", "Q", "s", "S", "o", "n", "d", "U", "D", "T", "Qt", "Qd"];
+const gemCapacity = [undefined, [20, 20, 20], [80, 80, 80], [180, 180, 180], [320, 320, 320], [500, 500, 500], [720, 720, 720], [980, 980, 980], [1000, 10000, 1248]];
 
 var modUtils = {
   setTimeout: function(f,time){
@@ -276,13 +278,6 @@ var modUtils = {
       }
     }
   }
-};
-
-var sendUI = function(ship, UI) {
-  console.log("attempt to send ui");
-  if (UI.visible || UI.visible === null) ship.setUIComponent(UI);
-    else ship.setUIComponent({id: UI.id, position: [0,0,0,0], visible: false});
-
 };
 
 var ability = {
@@ -435,26 +430,14 @@ var ability = {
   charge: function(ship){
     console.log("charge skill activated");
     ship.custom.overdrive = false;
-    if (ship.custom.gems + ship.crystals > 1000) {
-      if (ship.custom.gems >= 1000) ship.custom.gems -= 1000;
-      else {
-        ship.set({crystals: ship.crystals + ship.custom.gems - 1000});
-      }
-      ship.custom.shield = ship.shield;
-      ship.set({type:799});
-      ship.set({shield: 100000});
-      sendUI(ship, {id:"ability",visible:false});
-      sendUI(ship, {
-        id:"ability",position:[42,18,32,30],visible:true,
-        components: [{type:"text",position:[2,5,80/1.5,33/1.5],value:"Charge!",color:def_clr}]
+    ship.custom.shield = ship.shield;
+    ship.set({type:799});
+    ship.set({shield: 100000});
+    sendUI(ship, {id:"ability",visible:false});
+    sendUI(ship, {
+      id:"ability",position:[42,18,32,30],visible:true,
+      components: [{type:"text",position:[2,5,80/1.5,33/1.5],value:"Charge!",color:def_clr}]
       });
-    } else {
-      ship.custom.shield = -1;
-      sendUI(ship, {
-        id:"ability",position:[42,18,32,30],visible:true,
-        components: [{type:"text",position:[2,5,80/1.5,33/1.5],value:"Insufficient gems to activate skill (1000 needed)!",color:"hsla(0, 100%, 85%, 1)"}]
-      });
-    }
     modUtils.setTimeout(function(){
       sendUI(ship, {id:"ability",visible:false});
       if (ship.type == "799") ship.set({type:791});
@@ -541,7 +524,8 @@ var ability = {
     ship.set({type:791});
     ship.set({generator:99999});
     ship.set({shield:99999});
-    ship.custom.gems = 999999;
+    ship.set({crystals:1000});
+    ship.custom.gems = 10000;
     ship.custom.overdrive = false;
     ship.custom.gem = false;
     for (let i = 0; i < ship.custom.a.length; i++) {
@@ -601,59 +585,42 @@ var ability = {
   }
 };
 
+
+var delay = waiting_delay * 60;
+var delay_d = delay;
+
+let shields = {};
+
+for (let ship in ships) {
+  shields[JSON.parse(ships[ship]).level * 100 + JSON.parse(ships[ship]).model] = JSON.parse(ships[ship]).specs.shield.capacity;
+}
+
 var FormatTime = function(tick, forced, forceAll) {
   var array = Array(3).fill(0).map((i,j) => Math.floor((tick%(60**(j+2)))/(60**(j+1)))).reverse();
   while (array.length > forceAll && array[0] == 0) array.splice(0,1);
   forced = forced.reverse().slice(0,array.length).reverse();
   return array.map((i,j) => (i<10&&(j==0?forced[j]:!0))?"0"+i.toString():i).join(":");
 }
-var delay = waiting_delay * 60;
-var delay_d = delay;
 
-this.tick = function(game){
-    modUtils.tick();
-    
-    if (game.step % 3 === 1){
-      for (let ship of game.ships){
-          shipshield(ship);
-      }
-    }
-    
-    if (game.step % 21 === 0){
-      for (let ship of game.ships){
-          shipgem(ship);
-      }
-    }
-    
-    if (game.step % 10 === 5){
-      for (let ship of game.ships){
-        ability.tick(ship);
-      }
-    }
-    
-    if (game.step % 5 === 2){
-        for (let ship of game.ships){
-          if (ship.custom.missiles){
-              ship.emptyWeapons();
-              game.addCollectible({code:11,x:ship.x,y:ship.y});
-          }
-        }
-    }
+const sendUI = function(ship, UI) {
+  if (UI.visible || UI.visible === null) ship.setUIComponent(UI);
+    else ship.setUIComponent({id: UI.id, position: [0,0,0,0], visible: false});
 };
 
-let countDigits = function (num) {
+const countDigits = function (num) {
   if (num === 0) return 1;
-  return Math.floor(Math.log10(Math.abs(num))) + 1
-}, toEngineering = function (num) { // 10573 --> 10.57K
+  return Math.floor(Math.log10(Math.abs(num))) + 1;
+};
+
+const toEngineering = function (num) { // 10573 --> 10.57K
   if (num < 1e3) return num;
   let TriIndex = Math.trunc((countDigits(num) - 1) / 3);
-  return (num / 10**(TriIndex*3)).toFixed(2) + prefixes[TriIndex]
-}, shields = [2500,2500,2500,3000,2500,2500,2500,2500,100000],
-prefixes = ["", "K", "M", "B", "t", "q", "Q", "s", "S", "o", "n", "d", "U", "D", "T", "Qt", "Qd"]; // Up to 10^48
+  return (num / 10 ** (TriIndex * 3)).toFixed(2) + prefixes[TriIndex];
+};
 
 function shipshield(ship) {
-  let shipshield = shields[(ship.type-790)-1];
-  //echoc("shields: "+shipshield);
+  let shipshield = shields[ship.type][1];
+  //echo(`cap: ${shipshield}, ship: ${ship.type}, shield: ${ship.shield}`);
   if (!isNaN(ship.shield) && ship.shield >= 1000) sendUI(ship, {
     id: "shieldBar",
     position: [3.3,10.5,17.4,3],
@@ -668,12 +635,12 @@ function shipshield(ship) {
 }
 
 function shipgem(ship) {
-  let gemStorage = gemCapacity[Math.floor(Number(ship.type)/100)];
+  let gemStorage = gemCapacity[Number(ship.type) > 790? 8 : Math.floor(Number(ship.type)/100)];
   let customCap = gemStorage[1] - gemStorage[2];
   ship.custom.fakeCrystals = -1;
   if (!ship.custom.gems) ship.custom.gems = 0;
   let cap = gemStorage[0];
-  if (ship.custom.gems > gemStorage[1]) cap = gemStorage[2];
+  if (ship.custom.gems > customCap) cap = gemStorage[2];
   if (ship.crystals < cap) {
     let moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
 
@@ -682,13 +649,13 @@ function shipgem(ship) {
       ship.set({crystals: ship.crystals + moveToMain});
       ship.custom.fakeCrystals = ship.crystals + moveToMain
     }
-  } else if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
-    let moveToCustom = Math.min(ship.crystals - gemStorage[0], customCap - ship.custom.gems);
+  } else if (ship.crystals > cap && ship.custom.gems < customCap) {
+    let moveToCustom = Math.min(ship.crystals - cap, customCap - ship.custom.gems);
     ship.custom.gems += moveToCustom;
     ship.set({crystals: ship.crystals - moveToCustom});
     ship.custom.fakeCrystals = ship.crystals - moveToCustom;
   }
-  if (ship.custom.gems > customCap) ship.custom.gems = customCap;
+  //if (ship.custom.gems > customCap) ship.custom.gems = customCap;
 
   let totalGems = ship.crystals + ship.custom.gems;
   //echo(`${ship.crystals}, ${ship.custom.gems}, ${totalGems}`);
@@ -706,107 +673,38 @@ function shipgem(ship) {
   else sendUI(ship, {id:"gemBar",visible:false})
 }
 
-function setType (ship, code) {
-  let type = code ?? 701+((ship.custom.team*7)+(~~(Math.random()*7)));
-  ship.set({type: type, stats: 88888888, collider: !game.custom.ended})
-}
-
-function isRange(a,b,c){
-  return Math.min(a,b) <= c && c <= Math.max(a,b);
-}
-
-function getcolor(color,alpha = 1){
-  return `hsla(${color},100%,50%,${alpha})`;
-}
-
-var transform = {
-  zoom: () => 10/map_size,
-  scale: 1.5,
-  X: x => x+map_size*5,
-  Y: y => -y+map_size*5
-};
-let t = num => Math.max(num,0) || 0;
-
-function sqrDist(x, y){
-  return x*x+y*y;
-}
-
-function distance(x, y){
-  return Math.sqrt(x*x+y*y);
-}
-
-function dist2points(x, y, z, t){
-  return Math.sqrt((z-x)**2+(t-y)**2);
-}
-
-var ms = 150;
-function shortestPath(x1, y1, x2, y2, wrapV = true, wrapH = true){
-  var shortestDist = 10000;
-  var map_size = ms*5;
-  var coords = [];
-  var xx = x2-x1;
-  var yy = y2-y1;
-  if (!wrapH&&!wrapV) return [xx, yy];
-  coords.push(xx, yy);
-  var shortest = [xx, yy];
-  if (wrapH){
-    xx = x2+map_size*2-x1;
-    yy = y2-y1;
-    coords.push(xx, yy);
-    xx = x2-map_size*2-x1;
-    yy = y2-y1;
-    coords.push(xx, yy);
-  }
-  if (wrapV){
-    xx = x2-x1;
-    yy = y2+map_size*2-y1;
-    coords.push(xx, yy);
-    xx = x2-x1;
-    yy = y2-map_size*2-y1;
-    coords.push(xx, yy);
-  }
-  if (wrapV&&wrapH){
-    xx = x2+map_size*2-x1;
-    yy = y2+map_size*2-y1;
-    coords.push(xx, yy);
-    xx = x2+map_size*2-x1;
-    yy = y2-map_size*2-y1;
-    coords.push(xx, yy);
-    xx = x2-map_size*2-x1;
-    yy = y2+map_size*2-y1;
-    coords.push(xx, yy);
-    xx = x2-map_size*2-x1;
-    yy = y2-map_size*2-y1;
-    coords.push(xx, yy);
-  }
-  for (var i = 0; i<9; i++){
-    var dist = sqrDist(coords[i*2], coords[i*2+1]);
-    if(dist<shortestDist){
-      shortestDist = dist;
-      shortest = [coords[i*2], coords[i*2+1]];
+this.tick = function(game){
+  modUtils.tick();
+  
+  if (game.step % 3 === 1){
+    for (let ship of game.ships){
+        shipshield(ship);
     }
   }
-  return shortest;
-}
+  
+  if (game.step % 10 === 5){
+    for (let ship of game.ships){
+      ability.tick(ship);
+    }
+  }
+  
+  if (game.step % 5 === 2){
+      for (let ship of game.ships){
+        if (ship.custom.missiles){
+            ship.emptyWeapons();
+            game.addCollectible({code:11,x:ship.x,y:ship.y});
+        }
+      }
+  }
 
-function drawdirectionmarker(ship, x, y, wrapV, wrapH, id, color, label){
-  var sp = shortestPath(ship.x, ship.y, x, y, wrapV, wrapH);
-  var dist = distance(sp[0],sp[1]);
-  var x1 = sp[0]/dist;
-  var y1 = sp[1]/dist;
-  sendUI(ship, {
-    id: id,
-    position:[47+x1*30,49-y1*30,6*1.5,2*1.5],
-    clickable: false,
-    visible: true,
-    components: [
-      {type:"box",position:[40,30,20,40],fill:color,stroke:def_clr,width:2},
-      {type:"text",position:[((x<0-50)?0:75),0,25,100],value:label,color:def_clr}
-    ]
-  });
-}
+  if (game.step % 21 === 0){
+    for (let ship of game.ships){
+        shipgem(ship);
+    }
+  }
+};
 
-this.event = function(event,game) {
+this.event = function(event, game) {
   var ship = event.ship;
   if (ship != null) switch (event.name){
     case "ui_component_clicked":
@@ -817,11 +715,3 @@ this.event = function(event,game) {
       }
   }
 };
-
-function echoc(message, color, style, background=null){
-  if (!color) color = "";
-  if (!style) style = "";
-  if (!background) background = "";
-  game.modding.terminal.echo(`[[${style};${color};${background}]${message}]`);
-};
-

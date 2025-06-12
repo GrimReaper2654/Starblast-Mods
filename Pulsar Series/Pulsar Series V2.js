@@ -186,12 +186,12 @@ function shipshield(ship, b) {
 }
 
 function shipgem(ship) {
-  let gemStorage = gemCapacity[Math.floor(Number(ship.type)/100)];
+  let gemStorage = gemCapacity[Number(ship.type) > 790? 8 : Math.floor(Number(ship.type)/100)];
   let customCap = gemStorage[1] - gemStorage[2];
   ship.custom.fakeCrystals = -1;
   if (!ship.custom.gems) ship.custom.gems = 0;
   let cap = gemStorage[0];
-  if (ship.custom.gems > gemStorage[1]) cap = gemStorage[2];
+  if (ship.custom.gems > customCap) cap = gemStorage[2];
   if (ship.crystals < cap) {
     let moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
 
@@ -200,13 +200,13 @@ function shipgem(ship) {
       ship.set({crystals: ship.crystals + moveToMain});
       ship.custom.fakeCrystals = ship.crystals + moveToMain
     }
-  } else if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
-    let moveToCustom = Math.min(ship.crystals - gemStorage[0], customCap - ship.custom.gems);
+  } else if (ship.crystals > cap && ship.custom.gems < customCap) {
+    let moveToCustom = Math.min(ship.crystals - cap, customCap - ship.custom.gems);
     ship.custom.gems += moveToCustom;
     ship.set({crystals: ship.crystals - moveToCustom});
     ship.custom.fakeCrystals = ship.crystals - moveToCustom;
   }
-  if (ship.custom.gems > customCap) ship.custom.gems = customCap;
+  //if (ship.custom.gems > customCap) ship.custom.gems = customCap;
 
   let totalGems = ship.crystals + ship.custom.gems;
   //echo(`${ship.crystals}, ${ship.custom.gems}, ${totalGems}`);
