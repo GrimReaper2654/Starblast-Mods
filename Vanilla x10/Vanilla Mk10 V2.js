@@ -407,6 +407,7 @@ const modUtils = {
 
 
 modUtils.initShields(ships);
+/*
 modUtils.abilities.list.push(
   new modUtils.ability("Restock", "B", 3, 1, function (ship) {
     modUtils.sendUI(ship, { id: "ability", visible: false });
@@ -456,6 +457,29 @@ modUtils.abilities.list.push(
       this.duration * modUtils.abilityTPS
     );
   }, false, true)
+);*/
+modUtils.abilities.list.push(
+  new modUtils.ability("Reset", "J", 3, 1, function (ship) {
+    modUtils.sendUI(ship, { id: "ability", visible: false });
+    
+    if (ship.type != 101) ship.set({ type: 101 });
+    else ship.set({ type: 102 });
+
+    ship.set({ generator: 99999 });
+    ship.set({ shield: 99999 });
+
+    modUtils.sendUI(ship, {
+      id: "ability",
+      position: [42, 18, 32, 30],
+      visible: true,
+      components: [{type: "text", position: [2, 5, 80, 33], value: "Reset!", color: modUtils.def_clr}]
+    });
+
+    modUtils.setTimeout(
+      function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
+      this.duration * modUtils.abilityTPS
+    );
+  })
 );
 
 this.tick = modUtils.tick;
@@ -478,8 +502,7 @@ this.options = {
   friendly_colors: 2,
   root_mode: "team",
   speed_mod: 1,
-  //starting_ship: 503,
-  choose_ship: [101, 102, 602],
+  choose_ship: [101, 102],
   maxtierlives: 0,
   lives: 5,
   healing_ratio: 0.8,
@@ -489,16 +512,4 @@ this.options = {
   release_crystal: true,
   crystal_drop: 1,
   mines_self_destroy: false,
-  teams: [
-    {
-      faction: "Dark Stackers",
-      base_name: "Dark Pheonix's House",
-      hue: 0,
-    },
-    {
-      faction: "Dee Es",
-      base_name: "Amethyst's House",
-      hue: 270,
-    }
-  ]
 };
