@@ -31,7 +31,7 @@ const modUtils = {
   def_clr: "hsla(210, 50%, 87%, 1)",
   prefixes: ["", "K", "M", "B", "t", "q", "Q", "s", "S", "o", "n", "d", "U", "D", "T", "Qt", "Qd"],
   gemCapacity: [
-    undefined,
+    undefined, // maintain, custom limit, physical capacity
     [20, 20, 20],
     [80, 80, 80],
     [180, 180, 180],
@@ -46,12 +46,13 @@ const modUtils = {
   abilityTPS: 60,
 
   ability: class {
-    constructor(name, shortcut, duration, cooldown, effect, hidden = false) {
+    constructor(name, shortcut, duration, cooldown, effect, allowedShips = false, hidden = false) {
       this.name = name;
       this.shortcut = shortcut;
       this.duration = duration;
-      this.cooldown = cooldown;
+      this.cooldown = cooldown*60;
       this.effect = effect;
+      this.allowedShips = allowedShips;
       this.hidden = hidden;
     }
   },
@@ -61,21 +62,37 @@ const modUtils = {
 
     tick(ship) {
       modUtils.abilities.abilityactivation(ship);
-      if (!ship.custom.info) {
-        ship.custom.info = true;
+      if (!ship.custom.tier || ship.custom.tier != Math.floor(ship.type/100)) {
+        ship.custom.tier = Math.floor(ship.type/100);
+
+        for (let i = 0; i < modUtils.abilities.list.length; i++) {
+          modUtils.sendUI(ship, {
+            id: "abilityinfo" + i,
+            visible: false,
+          });
+          modUtils.sendUI(ship, {
+            id: "ability" + i,
+            visible: false,
+          });
+        }
+        
         modUtils.abilities.abilityinfo(ship);
       }
     },
 
     abilityinfo(ship) {
-      echo("Test");
       const def_clr = modUtils.def_clr;
       const a = modUtils.abilities.list.length;
+      let displayI = 0;
       for (let i = 0; i < a; i++) {
         const ab = modUtils.abilities.list[i];
+        if (ab.allowedShips && !ab.allowedShips.includes(ship.type)) {
+            continue;
+        }
+
         modUtils.sendUI(ship, {
           id: "abilityinfo" + i,
-          position: [2.5, 37 + (i - 1) * 6 + (ab.hidden ? 10000 : 0), 15, 10],
+          position: [2.5, 37 + (displayI - 1) * 6 + (ab.hidden ? 10000 : 0), 15, 10],
           visible: true,
           components: [
             {type: "text", position: [5, 5, 20, 30], value: ab.shortcut, color: def_clr},
@@ -83,6 +100,7 @@ const modUtils = {
             {type: "box", position: [5, 35, 90, 1], fill: "hsla(0, 0%, 100%, 1)", stroke: "hsla(0, 0%, 41%, 1)", width: 2},
           ],
         });
+        displayI++;
       }
     },
 
@@ -97,11 +115,16 @@ const modUtils = {
       }
 
       const reloadtimes = modUtils.abilities.list.map((ab) => 6 / (ab.cooldown || 1));
+      let displayI = 0;
       for (let i = 0; i < a; i++) {
         const ab = modUtils.abilities.list[i];
+        if (ab.allowedShips && !ab.allowedShips.includes(ship.type)) {
+            continue;
+        }
+
         modUtils.sendUI(ship, {
           id: "ability" + i,
-          position: [2.5, 37 + (i - 1) * 6, 15, 10],
+          position: [2.5, 37 + (displayI - 1) * 6 + (ab.hidden ? 10000 : 0), 15, 10],
           clickable: ship.custom.a[i].clickable,
           shortcut: ab.shortcut,
           visible: true,
@@ -118,6 +141,8 @@ const modUtils = {
           ship.custom.a[i].clickable = true;
           ship.custom.a[i].fill = "hsla(120, 100%, 50%, 1)";
         }
+
+        displayI++;
       }
     },
 
@@ -164,22 +189,20 @@ const modUtils = {
   },
 
   shipshield(ship) {
-    let shipshield = modUtils.shields[ship.type][1] || 1000;
+    let shield = modUtils.shields[ship.type];
+    let shipShield = Math.floor(shield[0] + (shield[1] - shield[0]) * (Math.floor(ship.stats / 10**7) / Math.floor(ship.type / 100)));
 
-    if (!isNaN(ship.shield) && ship.shield >= 1000) {
-      modUtils.sendUI(ship, {
-        id: "shieldBar",
-        position: [3.3, 10.5, 17.4, 3],
-        visible: true,
-        components: [
-          {type: "box", position: [0, 0, 100, 100], fill: "hsla(170, 32%, 28%, 1)", stroke: "hsla(170, 32%, 28%, 1)", width: 2},
-          {type: "box", position: [0, 0, 100 * (ship.shield / shipshield), 100], fill: "hsla(192, 97%, 74%, 1)", stroke: "hsla(192, 97%, 74%, 1)", width: 2},
-          {type: "text", position: [80, 0, 20, 100], value: modUtils.toEngineering(ship.shield), color: "hsla(0, 0%, 0%, 1)"},
-        ],
-      });
-    } else {
-      modUtils.sendUI(ship, { id: "shieldBar", visible: false });
-    }
+    if (!isNaN(ship.shield) && ship.shield >= 1000) modUtils.sendUI(ship, {
+      id: "shieldBar",
+      position: [3.3,10.5,17.4,3],
+      visible: true,
+      components: [
+        {type:"box",position:[0,0,100,100],fill:"hsla(170, 32%, 28%, 1)",stroke:"hsla(170, 32%, 28%, 1)",width:2},
+        {type:"box",position:[0,0,100 * Math.min(ship.shield, shipShield) / shipShield,100],fill:"hsla(192, 97%, 74%, 1)",stroke:"hsla(192, 97%, 74%, 1)",width:2},
+        {type: "text",position:[80,0,20,100],value: modUtils.toEngineering(ship.shield),color:"hsla(0, 0%, 0%, 1)"}
+      ]
+    });
+    else modUtils.sendUI(ship, {id:"shieldBar",visible:false});
   },
 
   shipgem(ship) {
@@ -226,6 +249,8 @@ const modUtils = {
     } else {
       modUtils.sendUI(ship, { id: "gemBar", visible: false });
     }
+
+    if (ship.crystals > gemStorage[2]) ship.set({crystals: gemStorage[2]});
   },
 
   handleUIPress(event) {
@@ -328,7 +353,7 @@ this.event = modUtils.handleUIPress;
 this.options = {
   map_size: 80,
   //custom_map: map,
-  map_name: "Shadow Series",
+  map_name: "Spedry's Moding",
   max_players: 30,
   vocabulary: modUtils.defaultVocab,
   radar_zoom: 1,
