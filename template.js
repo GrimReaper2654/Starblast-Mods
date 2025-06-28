@@ -1,6 +1,7 @@
 const ships = [];
 
 const modUtils = {
+  cheatMode: true, // debug mode
   defaultVocab: [
     { text: "You", icon: "\u004e", key: "O" },
     { text: "Me", icon: "\u004f", key: "E" },
@@ -19,7 +20,6 @@ const modUtils = {
     { text: "Thanks", icon: "\u0041", key: "X" },
     { text: "Sorry", icon: "\u00a1", key: "S" },
   ],
-
   music: [
     "procedurality.mp3",
     "argon.mp3",
@@ -100,7 +100,8 @@ const modUtils = {
             {type: "box", position: [5, 35, 90, 1], fill: "hsla(0, 0%, 100%, 1)", stroke: "hsla(0, 0%, 41%, 1)", width: 2},
           ],
         });
-        displayI++;
+
+        displayI += ab.hidden ? 0 : 1;
       }
     },
 
@@ -142,7 +143,7 @@ const modUtils = {
           ship.custom.a[i].fill = "hsla(120, 100%, 50%, 1)";
         }
 
-        displayI++;
+        displayI += ab.hidden ? 0 : 1;
       }
     },
 
@@ -320,33 +321,35 @@ const modUtils = {
 };
 
 modUtils.initShields(ships);
-modUtils.abilities.list.push(
-  new modUtils.ability("Restock", "B", 3, 1, function (ship) {
-    modUtils.sendUI(ship, { id: "ability", visible: false });
-    ship.set({ generator: 99999 });
-    ship.set({ shield: 99999 });
-
-    let gemStorage = modUtils.gemCapacity[modUtils.shipLevel(ship)];
-    if (gemStorage[0] == gemStorage[2]) ship.set({crystals: gemStorage[0]});
-    else ship.crystals = gemStorage[1];
-
-    for (let i = 0; i < ship.custom.a.length; i++) {
-      ship.custom.a[i].ready = 1;
-    }
-
-    modUtils.sendUI(ship, {
-      id: "ability",
-      position: [42, 18, 32, 30],
-      visible: true,
-      components: [{type: "text", position: [2, 5, 80, 33], value: "Refilled all!", color: modUtils.def_clr}]
-    });
-
-    modUtils.setTimeout(
-      function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
-      this.duration * modUtils.abilityTPS
-    );
-  })
-);
+if (modUtils.cheatMode) {
+  modUtils.abilities.list.push(
+    new modUtils.ability("Restock", "B", 3, 1, function (ship) {
+      modUtils.sendUI(ship, { id: "ability", visible: false });
+      ship.set({ generator: 99999 });
+      ship.set({ shield: 99999 });
+  
+      let gemStorage = modUtils.gemCapacity[modUtils.shipLevel(ship)];
+      if (gemStorage[0] == gemStorage[2]) ship.set({crystals: gemStorage[0]});
+      else ship.crystals = gemStorage[1];
+  
+      for (let i = 0; i < ship.custom.a.length; i++) {
+        ship.custom.a[i].ready = 1;
+      }
+  
+      modUtils.sendUI(ship, {
+        id: "ability",
+        position: [42, 18, 32, 30],
+        visible: true,
+        components: [{type: "text", position: [2, 5, 80, 33], value: "Refilled all!", color: modUtils.def_clr}]
+      });
+  
+      modUtils.setTimeout(
+        function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
+        this.duration * modUtils.abilityTPS
+      );
+    }, false, true)
+  );
+}
 
 this.tick = modUtils.tick;
 this.event = modUtils.handleUIPress;
