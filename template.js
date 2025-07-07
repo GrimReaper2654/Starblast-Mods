@@ -324,7 +324,6 @@ modUtils.initShields(ships);
 if (modUtils.cheatMode) {
   modUtils.abilities.list.push(
     new modUtils.ability("Restock", "B", 3, 1, function (ship) {
-      modUtils.sendUI(ship, { id: "ability", visible: false });
       ship.set({ generator: 99999 });
       ship.set({ shield: 99999 });
   
@@ -343,6 +342,23 @@ if (modUtils.cheatMode) {
         components: [{type: "text", position: [2, 5, 80, 33], value: "Refilled all!", color: modUtils.def_clr}]
       });
   
+      modUtils.setTimeout(
+        function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
+        this.duration * modUtils.abilityTPS
+      );
+    }, false, true)
+  );
+  modUtils.abilities.list.push(
+    new modUtils.ability("Reset", "L", 2, 1, function (ship) {
+      ship.set({ type: 101 });
+
+      modUtils.sendUI(ship, {
+        id: "ability",
+        position: [42, 18, 32, 30],
+        visible: true,
+        components: [{type: "text", position: [2, 5, 80, 33], value: "Reset!", color: modUtils.def_clr}]
+      });
+
       modUtils.setTimeout(
         function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
         this.duration * modUtils.abilityTPS
