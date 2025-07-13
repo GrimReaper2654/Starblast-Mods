@@ -101,7 +101,7 @@ var vocabulary = [
     { text: "Sorry", icon:"\u00a1", key:"S" }
 ];
 
-const gemCapacity = [undefined, [20, 20, 20], [80, 80, 80], [120, 300, 180], [250, 750, 320], [400, 1500, 500], [600, 5000, 720], [800, 10000, 980]];
+const gemCapacity = [undefined, [20, 20, 20], [80, 80, 80], [180, 180, 180], [320, 320, 320], [500, 500, 500], [600, 2500, 720], [800, 10000, 980]];
 
 let shields = {};
 
@@ -140,8 +140,8 @@ this.options = {
   max_players: 30,
   vocabulary: vocabulary,
   station_regeneration: 2,
-  station_crystal_capacity: 0.35,
-  station_repair_threshold: 0.25,
+  station_crystal_capacity: 0.1,
+  station_repair_threshold: 0.2,
   station_size: 3,
   all_ships_can_respawn: true,
   all_ships_can_dock: true,
@@ -151,7 +151,7 @@ this.options = {
   friendly_colors: debug? 0 : 2,
   root_mode: debug? "survival" : "team",
   speed_mod: 1,
-  asteroids_strength: 2,
+  asteroids_strength: 1,
   crystal_value: 5,
   release_crystal: true,
   crystal_drop: 0.75,
