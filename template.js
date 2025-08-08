@@ -31,7 +31,7 @@ const modUtils = {
   def_clr: "hsla(210, 50%, 87%, 1)",
   prefixes: ["", "K", "M", "B", "t", "q", "Q", "s", "S", "o", "n", "d", "U", "D", "T", "Qt", "Qd"],
   gemCapacity: [
-    undefined, // maintain, custom limit, physical capacity
+    undefined, // maintain, total capacity, maximum physical capacity (set below physical limit to delete excess gems)
     [20, 20, 20],
     [80, 80, 80],
     [180, 180, 180],
@@ -210,28 +210,19 @@ const modUtils = {
     const gemStorage = modUtils.gemCapacity[modUtils.shipLevel(ship)];
     const customCap = gemStorage[1] - gemStorage[2];
 
-    ship.custom = ship.custom || {};
-    ship.custom.fakeCrystals = -1;
     if (!ship.custom.gems) ship.custom.gems = 0;
 
     let cap = gemStorage[0];
-    if (ship.custom.gems > customCap) cap = gemStorage[2];
 
-    if (ship.crystals < cap) {
-      const moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
-      if (moveToMain > 0) {
-        ship.custom.gems -= moveToMain;
-        ship.set({ crystals: ship.crystals + moveToMain });
-        ship.custom.fakeCrystals = ship.crystals + moveToMain;
-      }
-    } else if (ship.crystals > cap && ship.custom.gems < customCap) {
-      const moveToCustom = Math.min(
-        ship.crystals - cap,
-        customCap - ship.custom.gems
-      );
+    if (ship.crystals > cap && ship.custom.gems < customCap) {
+      let moveToCustom = Math.min(customCap - ship.custom.gems, ship.crystals - cap);
       ship.custom.gems += moveToCustom;
-      ship.set({ crystals: ship.crystals - moveToCustom });
-      ship.custom.fakeCrystals = ship.crystals - moveToCustom;
+      ship.set({ crystals: Math.min(gemStorage[2], ship.crystals - moveToCustom) });
+
+    } else if (ship.crystals < cap) {
+      let moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
+      ship.custom.gems -= moveToMain;
+      ship.set({ crystals: ship.crystals + moveToMain });
     }
 
     const totalGems = ship.crystals + ship.custom.gems;
@@ -243,15 +234,13 @@ const modUtils = {
         components: [
           {type: "box", position: [0, 0, 100, 100], fill: "hsla(13, 30%, 25%, 1)", stroke: "hsla(13, 30%, 25%, 1)", width: 2},
           {type: "box", position: [0, 0, (100 * totalGems) / gemStorage[1], 100], fill: "hsla(5, 72%, 72%, 1)", stroke: "hsla(5, 72%, 72%, 1)", width: 2},
-          {type: "box", position: [0, 90, (100 * (ship.custom.fakeCrystals === -1? ship.crystals : ship.custom.fakeCrystals)) / gemStorage[2], 10], fill: "hsla(5, 50%, 50%, 1)", stroke: "hsla(5, 50%, 50%, 1)", width: 2},
+          {type: "box", position: [0, 90, 100 * ship.crystals], fill: "hsla(5, 50%, 50%, 1)", stroke: "hsla(5, 50%, 50%, 1)", width: 2},
           {type: "text", position: [80, 0, 20, 100], value: modUtils.toEngineering(totalGems), color: "hsla(0, 0%, 0%, 1)"},
         ],
       });
     } else {
       modUtils.sendUI(ship, { id: "gemBar", visible: false });
     }
-
-    if (ship.crystals > gemStorage[2]) ship.set({crystals: gemStorage[2]});
   },
 
   handleUIPress(event) {
@@ -300,7 +289,7 @@ const modUtils = {
       }
     }
 
-    if (t % 21 === 0) {
+    if (t % 30 === 0) {
       for (const ship of game.ships) {
         modUtils.shipgem(ship);
       }

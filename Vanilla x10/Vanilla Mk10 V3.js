@@ -87,7 +87,7 @@ ships.push(Ultimatum_701);
 ships.push(Ultimatum_791);
 
 const modUtils = {
-  cheatMode: false,
+  cheatMode: true,
   defaultVocab: [
     { text: "You", icon: "\u004e", key: "O" },
     { text: "Me", icon: "\u004f", key: "E" },
@@ -460,7 +460,7 @@ if (modUtils.cheatMode) {
   );
 }
 modUtils.abilities.list.push(
-  new modUtils.ability("Reset", "R", 3, 1, function (ship) {
+  new modUtils.ability("Reset", "J", 3, 1, function (ship) {
     modUtils.sendUI(ship, { id: "ability", visible: false });
     
     if (ship.type != 101) ship.set({ type: 101 });
@@ -482,19 +482,47 @@ modUtils.abilities.list.push(
     );
   })
 );
+modUtils.abilities.list.push(
+  new modUtils.ability("Reload", "Z", 1, 5, function (ship) {
+  for (let i = 0; i < 4; i++) {
+    game.addCollectible({
+      x: ship.x,
+      y: ship.y,
+      code: 12 // torp
+    });
+  }2
+  }, [406])
+);
 
 this.tick = modUtils.tick;
 this.event = modUtils.handleUIPress;
 this.options = {
-  map_size: 120,
-  map_name: "Invasion x10",
+  map_size: 150,
+  //custom_map: map,
+  map_name: "Vanilla x10",
   max_players: 30,
   vocabulary: modUtils.vocabulary,
+  station_regeneration: 2,
+  station_crystal_capacity: 0.1,
+  station_repair_threshold: 0.01,
+  station_size: 5,
+  all_ships_can_respawn: true,
+  all_ships_can_dock: true,
+  radar_zoom: 2,
   ships: ships,
   reset_tree: true,
-  friendly_colors: 1,
-  root_mode: "invasion",
+  friendly_colors: 5,
+  root_mode: "survival",
+  speed_mod: 1,
   choose_ship: [101, 102],
+  maxtierlives: 0,
+  lives: 5,
+  healing_ratio: 2,
+  map_density: 2,
+  asteroids_strength: 4,
+  crystal_value: 5,
   release_crystal: true,
+  crystal_drop: 1,
   mines_self_destroy: false,
+  survival_time: 20,
 };
