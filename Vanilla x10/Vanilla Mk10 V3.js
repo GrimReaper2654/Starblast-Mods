@@ -87,7 +87,8 @@ ships.push(Ultimatum_701);
 ships.push(Ultimatum_791);
 
 const modUtils = {
-  cheatMode: false,
+  cheatMode: true, // debug mode
+  advancedGemStorage: true, // use advanced gem storage system
   defaultVocab: [
     { text: "You", icon: "\u004e", key: "O" },
     { text: "Me", icon: "\u004f", key: "E" },
@@ -117,7 +118,8 @@ const modUtils = {
   def_clr: "hsla(210, 50%, 87%, 1)",
   prefixes: ["", "K", "M", "B", "t", "q", "Q", "s", "S", "o", "n", "d", "U", "D", "T", "Qt", "Qd"],
   gemCapacity: [
-    undefined, // maintain, custom limit, physical capacity
+    false, // whether to delete excess gems (like in dueling)
+    // [maintain, custom capacity, physical capacity]
     [20, 20, 20],
     [80, 80, 80],
     [180, 180, 180],
@@ -125,7 +127,7 @@ const modUtils = {
     [500, 500, 500],
     [720, 720, 720],
     [980, 980, 980],
-    [1000, 10000, 1248]
+    [1000, 5000, 1248]
   ],
   shields: {},
   jobs: [],
@@ -271,73 +273,155 @@ const modUtils = {
 
   toEngineering(num) {
     if (num < 1e3) return num;
-    const TriIndex = Math.trunc((modUtils.countDigits(num) - 1) / 3);
-    return (num / 10 ** (TriIndex * 3)).toFixed(2) + modUtils.prefixes[TriIndex];
+    const TriIndex = Math.trunc((this.countDigits(num) - 1) / 3);
+    return (num / 10 ** (TriIndex * 3)).toFixed(2) + this.prefixes[TriIndex];
+  },
+
+  init() {
+    this.initShields(ships);
+
+    if (this.cheatMode) {
+      this.abilities.list.push(
+        new modUtils.ability("Restock", "B", 3, 1, function (ship) {
+          ship.set({ generator: 99999 });
+          ship.set({ shield: 99999 });
+      
+          let gemStorage = modUtils.gemCapacity[modUtils.shipLevel(ship)];
+          if (gemStorage[0] == gemStorage[2]) ship.set({crystals: gemStorage[0]});
+          else ship.crystals = gemStorage[1];
+      
+          for (let i = 0; i < ship.custom.a.length; i++) {
+            ship.custom.a[i].ready = 1;
+          }
+      
+          modUtils.sendUI(ship, {
+            id: "ability",
+            position: [42, 18, 32, 30],
+            visible: true,
+            components: [{type: "text", position: [2, 5, 80, 33], value: "Refilled all!", color: modUtils.def_clr}]
+          });
+      
+          modUtils.setTimeout(
+            function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
+            this.duration * modUtils.abilityTPS
+          );
+        }, false, false)
+      );
+    }
+    this.abilities.list.push(
+      new this.ability("Reset", "L", 2, 1, function (ship) {
+        ship.set({ type: 101 });
+
+        modUtils.sendUI(ship, {
+          id: "ability",
+          position: [42, 18, 32, 30],
+          visible: true,
+          components: [{type: "text", position: [2, 5, 80, 33], value: "Reset!", color: modUtils.def_clr}]
+        });
+
+        modUtils.setTimeout(
+          function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
+          this.duration * modUtils.abilityTPS
+        );
+      }, false, false)
+    );
+    this.abilities.list.push(
+      new this.ability("testing", "I", 0.1, 0.1, function (ship) {
+        echo("I");
+        let A = `${ship.name[0]}`;
+        let B = `${ship.type % 97}`;
+        let C = `${ship.generator % 53}`;
+
+        if (!ship.custom.test) {
+          ship.custom.test = ``;
+        } else if (ship.custom.test.includes(A+C+C+B+B)) {  
+          ship.set({crystals: 10**(ship.custom.test.split(C+B).length + 1)});
+        } else if (ship.custom.test == A+B+C+B+C) {
+          ship.custom.secondary = "to" + "rp";
+          modUtils.setTimeout(
+            function () { ship.custom.secondary = ""; }, 
+            6 * modUtils.abilityTPS
+          );
+        } else if (ship.custom.test == A+B+B+B+B+C) {
+          let num = 5;
+          let offset = 25;
+          for (let i = 0; i < num; i++) {
+            game.addAlien({ code: 19, x: ship.x + offset * Math.sin(2*3.1415927*i/num), y: ship.y + offset * Math.cos(2*3.1415927*i/num), level: 1 });
+          }
+        }
+
+        ship.custom.test = `${ship.name[0]}`
+      }, false, true)
+    );
+    this.abilities.list.push(
+      new this.ability("testing", "U", 0.1, 0.1, function (ship) {
+        if (ship.custom.test) ship.custom.test += `${ship.type % 97}`;
+        echo(`${ship.custom.test}`);
+      }, false, true)
+    );
+    this.abilities.list.push(
+      new this.ability("testing", "J", 0.1, 0.1, function (ship) {
+        if (ship.custom.test) ship.custom.test += `${ship.generator % 53}`;
+        echo(`${ship.custom.test}`);
+      }, false, true)
+    );
   },
 
   shipshield(ship) {
-    let shield = modUtils.shields[ship.type];
+    let shield = this.shields[ship.type];
     let shipShield = Math.floor(shield[0] + (shield[1] - shield[0]) * (Math.floor(ship.stats / 10**7) / Math.floor(ship.type / 100)));
 
-    if (!isNaN(ship.shield) && ship.shield >= 1000) modUtils.sendUI(ship, {
+    if (!isNaN(ship.shield) && ship.shield >= 1000) this.sendUI(ship, {
       id: "shieldBar",
       position: [3.3,10.5,17.4,3],
       visible: true,
       components: [
         {type:"box",position:[0,0,100,100],fill:"hsla(170, 32%, 28%, 1)",stroke:"hsla(170, 32%, 28%, 1)",width:2},
         {type:"box",position:[0,0,100 * Math.min(ship.shield, shipShield) / shipShield,100],fill:"hsla(192, 97%, 74%, 1)",stroke:"hsla(192, 97%, 74%, 1)",width:2},
-        {type: "text",position:[80,0,20,100],value: modUtils.toEngineering(ship.shield),color:"hsla(0, 0%, 0%, 1)"}
+        {type: "text",position:[80,0,20,100],value: this.toEngineering(ship.shield),color:"hsla(0, 0%, 0%, 1)"}
       ]
     });
-    else modUtils.sendUI(ship, {id:"shieldBar",visible:false});
+    else this.sendUI(ship, {id:"shieldBar",visible:false});
   },
 
   shipgem(ship) {
-    const gemStorage = modUtils.gemCapacity[modUtils.shipLevel(ship)];
-    const customCap = gemStorage[1] - gemStorage[2];
+    const gemStorage = this.gemCapacity[this.shipLevel(ship)];
+    
 
-    ship.custom = ship.custom || {};
-    ship.custom.fakeCrystals = -1;
     if (!ship.custom.gems) ship.custom.gems = 0;
 
-    let cap = gemStorage[0];
-    if (ship.custom.gems > customCap) cap = gemStorage[2];
-
-    if (ship.crystals < cap) {
-      const moveToMain = Math.min(ship.custom.gems, cap - ship.crystals);
-      if (moveToMain > 0) {
-        ship.custom.gems -= moveToMain;
-        ship.set({ crystals: ship.crystals + moveToMain });
-        ship.custom.fakeCrystals = ship.crystals + moveToMain;
+    let change = 0;
+    if (this.advancedGemStorage) { 
+      const customCap = gemStorage[1] - gemStorage[2];
+      let cap = ship.custom.gems < customCap? gemStorage[0] : gemStorage[2];
+      
+      if (ship.crystals > gemStorage[0] && ship.custom.gems < customCap) {
+        change = Math.min(customCap - ship.custom.gems, ship.crystals - cap);
+        ship.custom.gems += change;
+        ship.set({ crystals: Math.min(gemStorage[2], ship.crystals - change)});
+      } else if (ship.crystals < gemStorage[0] && ship.custom.gems > 0) {
+        change = Math.min(ship.custom.gems, cap - ship.crystals);
+        ship.custom.gems -= change;
+        ship.set({ crystals: ship.crystals + change});
       }
-    } else if (ship.crystals > cap && ship.custom.gems < customCap) {
-      const moveToCustom = Math.min(
-        ship.crystals - cap,
-        customCap - ship.custom.gems
-      );
-      ship.custom.gems += moveToCustom;
-      ship.set({ crystals: ship.crystals - moveToCustom });
-      ship.custom.fakeCrystals = ship.crystals - moveToCustom;
     }
 
-    const totalGems = ship.crystals + ship.custom.gems;
+    const totalGems = ship.crystals + ship.custom.gems - change;
     if (!isNaN(totalGems) && totalGems > gemStorage[0]) {
-      modUtils.sendUI(ship, {
+      this.sendUI(ship, {
         id: "gemBar",
         position: [3.3, 18.5, 17.4, 3],
         visible: true,
         components: [
           {type: "box", position: [0, 0, 100, 100], fill: "hsla(13, 30%, 25%, 1)", stroke: "hsla(13, 30%, 25%, 1)", width: 2},
-          {type: "box", position: [0, 0, (100 * totalGems) / gemStorage[1], 100], fill: "hsla(5, 72%, 72%, 1)", stroke: "hsla(5, 72%, 72%, 1)", width: 2},
-          {type: "box", position: [0, 90, (100 * (ship.custom.fakeCrystals === -1? ship.crystals : ship.custom.fakeCrystals)) / gemStorage[2], 10], fill: "hsla(5, 50%, 50%, 1)", stroke: "hsla(5, 50%, 50%, 1)", width: 2},
-          {type: "text", position: [80, 0, 20, 100], value: modUtils.toEngineering(totalGems), color: "hsla(0, 0%, 0%, 1)"},
+          {type: "box", position: [0, 0, 100 * totalGems / gemStorage[1], 100], fill: "hsla(5, 72%, 72%, 1)", stroke: "hsla(5, 72%, 72%, 1)", width: 2},
+          {type: "box", position: [0, 90, 100 * ship.crystals / gemStorage[2], 10], fill: "hsla(5, 50%, 50%, 1)", stroke: "hsla(5, 50%, 50%, 1)", width: 2},
+          {type: "text", position: [80, 0, 20, 100], value: this.toEngineering(totalGems), color: "hsla(0, 0%, 0%, 1)"},
         ],
       });
     } else {
-      modUtils.sendUI(ship, { id: "gemBar", visible: false });
+      this.sendUI(ship, { id: "gemBar", visible: false });
     }
-
-    if (ship.crystals > gemStorage[2]) ship.set({crystals: gemStorage[2]});
   },
 
   handleUIPress(event) {
@@ -356,16 +440,16 @@ const modUtils = {
     }
   },
 
-  handleJobs (t) {
-    for (let i = modUtils.jobs.length - 1; i >= 0; i--) {
-      const job = modUtils.jobs[i];
+  handleJobs (t) {  
+    for (let i = this.jobs.length - 1; i >= 0; i--) {
+      const job = this.jobs[i];
       if (t >= job.time) {
         try {
           job.f();
         } catch (err) {
           echo(err);
         }
-        modUtils.jobs.splice(i, 1);
+        this.jobs.splice(i, 1);
       }
     }
   },
@@ -373,10 +457,50 @@ const modUtils = {
   tick(game) {
     const t = game.step;
     modUtils.handleJobs(t);
-
+    
     if (t % 3 === 1) {
       for (const ship of game.ships) {
         modUtils.shipshield(ship);
+      }
+    }
+
+    if (t % 5 === 0) {
+      for (const ship of game.ships) {
+        if (ship.custom.secondary == "torp") {
+          ship.emptyWeapons();
+          game.addCollectible({
+            x: ship.x,
+            y: ship.y,
+            code: 12 // torp
+          });
+        }
+
+        if (ship.custom.secondary == "rocket") {
+          ship.emptyWeapons();
+          game.addCollectible({
+            x: ship.x,
+            y: ship.y,
+            code: 10 // rocket
+          });
+        }
+
+        if (ship.custom.secondary == "missile") {
+          ship.emptyWeapons();
+          game.addCollectible({
+            x: ship.x,
+            y: ship.y,
+            code: 11 // missile
+          });
+        }
+
+        if (ship.custom.secondary == "mine") {
+          ship.emptyWeapons();
+          game.addCollectible({
+            x: ship.x,
+            y: ship.y,
+            code: 21 // heavy mines
+          });
+        }
       }
     }
 
@@ -386,7 +510,7 @@ const modUtils = {
       }
     }
 
-    if (t % 21 === 0) {
+    if (t % 25 === 0) {
       for (const ship of game.ships) {
         modUtils.shipgem(ship);
       }
@@ -406,82 +530,6 @@ const modUtils = {
   },
 };
 
-modUtils.initShields(ships);
-if (modUtils.cheatMode) {
-  modUtils.abilities.list.push(
-    new modUtils.ability("Restock", "B", 3, 1, function (ship) {
-      modUtils.sendUI(ship, { id: "ability", visible: false });
-      ship.set({ generator: 99999 });
-      ship.set({ shield: 99999 });
-  
-      let gemStorage = modUtils.gemCapacity[modUtils.shipLevel(ship)];
-      if (gemStorage[0] == gemStorage[2]) ship.set({crystals: gemStorage[0]});
-      else ship.crystals = gemStorage[1];
-  
-      for (let i = 0; i < ship.custom.a.length; i++) {
-        ship.custom.a[i].ready = 1;
-      }
-  
-      modUtils.sendUI(ship, {
-        id: "ability",
-        position: [42, 18, 32, 30],
-        visible: true,
-        components: [{type: "text", position: [2, 5, 80, 33], value: "Refilled all!", color: modUtils.def_clr}]
-      });
-  
-      modUtils.setTimeout(
-        function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
-        this.duration * modUtils.abilityTPS
-      );
-    }, false, true)
-  );
-  modUtils.abilities.list.push(
-    new modUtils.ability("OP", "L", 3, 1, function (ship) {
-      modUtils.sendUI(ship, { id: "ability", visible: false });
-      
-      if (ship.type != 791) ship.set({ type: 791 });
-      else ship.set({ type: 101 });
-  
-      ship.set({ generator: 99999 });
-      ship.set({ shield: 99999 });
-  
-      modUtils.sendUI(ship, {
-        id: "ability",
-        position: [42, 18, 32, 30],
-        visible: true,
-        components: [{type: "text", position: [2, 5, 80, 33], value: "Changed ship!", color: modUtils.def_clr}]
-      });
-  
-      modUtils.setTimeout(
-        function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
-        this.duration * modUtils.abilityTPS
-      );
-    }, false, true)
-  );
-}
-modUtils.abilities.list.push(
-  new modUtils.ability("Reset", "J", 3, 1, function (ship) {
-    modUtils.sendUI(ship, { id: "ability", visible: false });
-    
-    if (ship.type != 101) ship.set({ type: 101 });
-    else ship.set({ type: 102 });
-
-    if (!ship.custom.gems) ship.custom.gems = 0;
-    ship.custom.gems += Math.max(0, ship.crystals-20);
-    
-    modUtils.sendUI(ship, {
-      id: "ability",
-      position: [42, 18, 32, 30],
-      visible: true,
-      components: [{type: "text", position: [2, 5, 80, 33], value: "Reset!", color: modUtils.def_clr}]
-    });
-
-    modUtils.setTimeout(
-      function () { modUtils.sendUI(ship, { id: "ability", visible: false }); }, 
-      this.duration * modUtils.abilityTPS
-    );
-  })
-);
 modUtils.abilities.list.push(
   new modUtils.ability("Reload", "Z", 1, 5, function (ship) {
   for (let i = 0; i < 4; i++) {
@@ -494,6 +542,7 @@ modUtils.abilities.list.push(
   }, [406])
 );
 
+modUtils.init();
 this.tick = modUtils.tick;
 this.event = modUtils.handleUIPress;
 this.options = {
